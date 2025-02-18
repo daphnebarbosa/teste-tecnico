@@ -21,6 +21,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.*;
@@ -38,6 +39,8 @@ class OrderControllerTest {
     private static final String USER_NAME_2 = "Test 2";
     private static final String EMAIL = "test@email.com";
     private static final String EMAIL_2 = "test2@email.com";
+    private static final String URL = "/api/orders";
+    private static final Long ODER_ID = 1L;
 
     private OrderRequestDto orderRequestDto;
     private OrderResponseDto orderResponseDto;
@@ -96,10 +99,10 @@ class OrderControllerTest {
     }
 
     @Test
-    void testCreateOrder() throws Exception {
+    void shouldCreateOrderSuccessfully() throws Exception {
 
         when(orderService.createOrder(any(OrderRequestDto.class))).thenReturn(orderResponseDto);
-        mockMvc.perform(post("/api/orders")
+        mockMvc.perform(post(URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(new ObjectMapper().writeValueAsString(orderRequestDto)))
                 .andExpect(status().isCreated())
@@ -108,13 +111,13 @@ class OrderControllerTest {
     }
 
     @Test
-    void testGetAllOrders() throws Exception {
+    void shouldRetrieveAllOrdersSuccessfullyWhenOrderExists() throws Exception {
 
         List<OrderResponseDto> orders = Arrays.asList(orderResponseDto, orderResponseDto1);
 
         when(orderService.findAll()).thenReturn(orders);
 
-        mockMvc.perform(get("/api/orders")
+        mockMvc.perform(get(URL)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
@@ -122,6 +125,29 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$[0].user.name").value(USER_NAME))
                 .andExpect(jsonPath("$[1].quantity").value(1))
                 .andExpect(jsonPath("$[1].user.name").value(USER_NAME_2));
+    }
+
+    @Test
+    void shouldReturnOrderWhenOrderExists() throws Exception {
+
+        when(orderService.findById(ODER_ID)).thenReturn(Optional.of(orderResponseDto));
+
+        mockMvc.perform(get(URL.concat("/") + ODER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.name").value(USER_NAME))
+                .andExpect(jsonPath("$.item.name").value(ITEM_NAME));
+    }
+
+    @Test
+    void deleteOrder_ShouldReturnNoContent_WhenOrderIsDeleted() throws Exception {
+
+        doNothing().when(orderService).deleteOrder(ODER_ID);
+
+        mockMvc.perform(delete(URL.concat("/") + ODER_ID))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string("Order deleted successfully"));
+
+        verify(orderService, times(1)).deleteOrder(ODER_ID);
     }
 
 }
