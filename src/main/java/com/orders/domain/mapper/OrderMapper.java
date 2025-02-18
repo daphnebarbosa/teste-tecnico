@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class OrderMapper {
 
-
     public OrderResponseDto entityToResponseDto(final OrderEntity entity) {
 
         return OrderResponseDto.builder()
