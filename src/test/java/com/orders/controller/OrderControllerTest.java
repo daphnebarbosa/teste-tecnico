@@ -7,22 +7,41 @@ import com.orders.domain.dto.OrderResponseDto;
 import com.orders.domain.dto.UserDto;
 import com.orders.service.OrderService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.Test;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 
+import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.hamcrest.Matchers.is;
+
+@RunWith(SpringRunner.class)
 @WebMvcTest(OrderController.class)
 class OrderControllerTest {
 
     private static final String ITEM_NAME = "Notebook";
+    private static final String ITEM_NAME_2 = "Playstation 5";
+    private static final String USER_NAME = "Test";
+    private static final String USER_NAME_2 = "Test 2";
+    private static final String EMAIL = "test@email.com";
+    private static final String EMAIL_2 = "test2@email.com";
 
     private OrderRequestDto orderRequestDto;
     private OrderResponseDto orderResponseDto;
+    private OrderResponseDto orderResponseDto1;
 
     @Autowired
     private MockMvc mockMvc;
@@ -33,7 +52,7 @@ class OrderControllerTest {
     @InjectMocks
     private OrderController orderController;
 
-    @Mock
+    @MockBean
     private OrderService orderService;
 
 
@@ -42,8 +61,8 @@ class OrderControllerTest {
         Integer quantity = 2;
 
         UserDto userDto = UserDto.builder()
-                .name("Test")
-                .email("test@mail.com")
+                .name(USER_NAME)
+                .email(EMAIL)
                 .build();
 
         ItemDto itemDto = ItemDto.builder()
@@ -62,6 +81,47 @@ class OrderControllerTest {
                 .quantity(quantity)
                 .creationDate(Timestamp.from(Instant.now()))
                 .build();
+
+        orderResponseDto1 = OrderResponseDto.builder()
+                .user(UserDto.builder()
+                        .name(USER_NAME_2)
+                        .email(EMAIL_2)
+                        .build())
+                .item(ItemDto.builder()
+                        .name(ITEM_NAME_2)
+                        .build())
+                .quantity(1)
+                .creationDate(Timestamp.from(Instant.now()))
+                .build();
+    }
+
+    @Test
+    void testCreateOrder() throws Exception {
+
+        when(orderService.createOrder(any(OrderRequestDto.class))).thenReturn(orderResponseDto);
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new ObjectMapper().writeValueAsString(orderRequestDto)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.item.name", is(orderResponseDto.getItem().getName())))
+                .andExpect(jsonPath("$.user.name", is(orderResponseDto.getUser().getName())));
+    }
+
+    @Test
+    void testGetAllOrders() throws Exception {
+
+        List<OrderResponseDto> orders = Arrays.asList(orderResponseDto, orderResponseDto1);
+
+        when(orderService.findAll()).thenReturn(orders);
+
+        mockMvc.perform(get("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].quantity").value(2))
+                .andExpect(jsonPath("$[0].user.name").value(USER_NAME))
+                .andExpect(jsonPath("$[1].quantity").value(1))
+                .andExpect(jsonPath("$[1].user.name").value(USER_NAME_2));
     }
 
 }
